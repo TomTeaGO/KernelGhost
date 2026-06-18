@@ -1,0 +1,2 @@
+# KernelGhost
+Linux distribution
