@@ -1,59 +1,70 @@
+Initial Access
+
+The first sign of compromise appears to be from the user downloading and running a fake game installer. I reviewed Chrome history, download artefacts, and UserAssist evidence. These showed that the user smithy had been searching for free games before the file Call-Of-Duty-Modern-Warfare.exe was downloaded into the Downloads folder.
+
+The file path identified was:
+
+C:\Users\smithy\Downloads\Call-Of-Duty-Modern-Warfare.exe
+
+At 00:33:48 UTC on 07 Apr 2020, UserAssist showed that this file was executed by the smithy account. This is most likely where the malware first gained execution on the laptop. The file name looked like a normal Call of Duty installer, but the later service activity shows it was not legitimate. This maps to MITRE ATT&CK T1204.002 — User Execution: Malicious File. Evidence for this is shown in.
+
 Privilege Escalation
 
-Privilege escalation was not confirmed from the evidence reviewed. Windows System logs showed that the suspicious service cxlNatIRHFFcg / Call of Duty Online Checker was installed and configured to run under the LocalSystem account, which means the malware achieved high-privilege service execution.
+Analysis of the SAM registry hive showed that the user account smithy was a member of the local Administrators group. This evidence was found in:
+C:\Windows\System32\config\SAM
+SAM\Domains\Account\Users
+The user already had administrator rights, the malware most likely did not need to exploit the system to gain higher privileges. When the fake game installer was run by smithy, it likely had enough permission to create a Windows service.
+The Windows System logs later showed the service cxlNatIRHFFcg / Call of Duty Online Checker was installed with the path:
+"C:\Users\smithy\Downloads\Call of Duty Service.exe" abpVYmEe
 
-However, the evidence does not show how the malware gained permission to create a LocalSystem service. No confirmed UAC bypass, exploit, token abuse, credential theft, or privilege escalation method was identified. It is possible the user already had local administrator rights on the personal laptop or approved the fake installer when it was executed.
-
-For this reason, this activity should be described as privileged execution through Windows service creation, not confirmed privilege escalation.
+The service was configured to run as LocalSystem, which is a highly privileged Windows account. My assessment is that the malware used the existing administrator rights of the smithy account to create the service, and then Windows Service Control Manager started it as LocalSystem. This refes to  MITRE mapping T1543.003 — Windows Service, because the malware used a Windows service to run with system-level privileges, but the main use of this technique in the report should remain under persistence.
 
 Lateral Movement
 
-Lateral movement was not confirmed from the available evidence. Review of the uploaded Security logs, System logs, Volatility process evidence, and available artefacts did not identify confirmed movement from Joseph Smith’s laptop to another system.
+Lateral movement was not confirmed. I reviewed the available Security logs, System logs, Volatility process output, and network-related artefacts, but I did not find clear evidence that the attacker moved from Joseph Smith’s laptop to another system.
 
-No clear evidence was found for RDP logons, SMB movement, remote service creation on another host, remote PowerShell, or another affected system. Based on the evidence reviewed, the compromise appears limited to Joseph Smith’s laptop.
+There was no confirmed evidence of RDP logons, SMB movement, remote PowerShell, remote service creation, or another compromised host. Based on the evidence available, the compromise appears to be limited to Joseph Smith’s laptop. Further checking of firewall logs, proxy logs, and wider network monitoring would be needed to fully rule this out.
 
 Persistence
 
-The evidence shows that the malware created persistence by installing itself as a Windows service. Windows System logs, registry artefacts, and Volatility output all pointed to a suspicious service linked to Call of Duty Service.exe, located at C:\Users\smithy\Downloads\Call of Duty Service.exe.
-
-At 00:46:39 UTC on 07 Apr 2020, the service cxlNatIRHFFcg / Call of Duty Online Checker was created with the file path "C:\Users\smithy\Downloads\Call of Duty Service.exe" abpVYmEe. The service was configured as auto start and ran under the LocalSystem account. This explains why the user kept seeing the Call of Duty Service running after reboot.
-
-This maps to MITRE ATT&CK T1543.003 — Windows Service, because the malware used a Windows service to continue running after restart. It also maps to MITRE ATT&CK T1036.004 — Masquerade Task or Service, because the fake Call of Duty name made the service look like a normal game-related background service.
-
-Post Exploitation
-
-After the malware gained execution, it continued running through the suspicious Call of Duty Service.exe process. The main evidence came from Windows System logs, Volatility process output, command-line artefacts, and memory/shellcode evidence. The key file path linked to this activity was:
+Persistence was confirmed through a Windows service. The main service found was cxlNatIRHFFcg / Call of Duty Online Checker, which pointed to:
 
 C:\Users\smithy\Downloads\Call of Duty Service.exe
 
-Execution
-
-Windows System logs showed that a service named cxlNatIRHFFcg / Call of Duty Online Checker was installed with the service file path:
+At 00:46:39 UTC on 07 Apr 2020, the service was installed with this service file path:
 
 "C:\Users\smithy\Downloads\Call of Duty Service.exe" abpVYmEe
 
-The service was configured to run as LocalSystem and was set to auto start. Volatility process evidence also showed Call of Duty Service.exe running under services.exe, which is expected behaviour for a Windows service. This means the malware was not just sitting on the disk; it was actively running as a service on the laptop.
+The service was set to auto start and ran under LocalSystem. This explains the user’s complaint that the Call of Duty Service kept running after reboot. A normal service would usually run from C:\Program Files or C:\Windows\System32, not directly from the user’s Downloads folder. This maps to MITRE ATT&CK T1543.003 — Windows Service. The fake Call of Duty name also maps to T1036.004 — Masquerade Task or Service. Evidence is shown in Figure X.
 
-A second suspicious service named hmsfkw was also found in the System logs. This service attempted to run:
+Post Exploitation
+
+After the malicious service was created, Call of Duty Service.exe continued running under services.exe, which is normal behaviour for a Windows service. Volatility evidence also showed repeated child process activity from Call of Duty Service.exe. This likely explains why Joseph Smith reported that the laptop was running slowly.
+
+Execution
+
+The main suspicious service found in the Windows System logs was:
+
+Service Name: cxlNatIRHFFcg
+Display Name: Call of Duty Online Checker
+Service File Name: "C:\Users\smithy\Downloads\Call of Duty Service.exe" abpVYmEe
+Start Type: auto start
+Account: LocalSystem
+
+This shows that the malware was actively running through Windows service execution, not just sitting as a file in the Downloads folder.
+
+A second suspicious service named hmsfkw was also found. It attempted to run:
 
 cmd.exe /c echo hmsfkw > \.\pipe\hmsfkw
 
-This command tried to write the text hmsfkw into a Windows named pipe. The service later failed after 30000 milliseconds, so it should not be treated as successful persistence. However, it is still suspicious because it used a random service name, cmd.exe, and named pipe activity shortly before the main Call of Duty Service.exe service was created. This activity maps to MITRE ATT&CK T1059.003 — Windows Command Shell and T1569.002 — Service Execution.
+This command tried to write the text hmsfkw into a Windows named pipe. The service failed after 30000 milliseconds, so I would not treat this as successful persistence. However, it is still suspicious because it used a random service name, cmd.exe, and named pipe activity around the same time as the confirmed Call of Duty service.
+
+This activity maps to MITRE ATT&CK T1059.003 — Windows Command Shell and T1569.002 — Service Execution.
 
 Defence Evasion
 
-The malware used simple masquerading to avoid suspicion. It used names such as Call of Duty Service and Call of Duty Online Checker, which made the service look like it belonged to a normal game or game update process.
-
-This was suspicious because the service was running from the user’s Downloads folder:
-
-C:\Users\smithy\Downloads\Call of Duty Service.exe
-
-A legitimate Windows service would normally run from a trusted program location such as C:\Program Files or C:\Windows\System32, not directly from a user Downloads folder. This maps to MITRE ATT&CK T1036.004 — Masquerade Task or Service, because the malware used a believable service name to make the activity look normal.
+The malware used fake game-related names such as Call of Duty Service and Call of Duty Online Checker. This helped it look like a normal game service. The file running from C:\Users\smithy\Downloads is suspicious because legitimate services usually run from trusted locations like C:\Program Files or C:\Windows\System32. This maps to MITRE ATT&CK T1036.004 — Masquerade Task or Service.
 
 Command and Control
 
-Memory evidence showed shellcode-style data containing ws2_32, which is linked to Windows networking functions. The shellcode also contained a likely external destination:
-
-1.6.12.12:11198
-
-This suggests the malware may have had command-and-control or reverse connection capability. If 1.6.12.12:11198 is confirmed in Volatility netscan, netstat, firewall logs, proxy logs, or packet capture, then it can be reported as confirmed network communication. If it was only found inside shellcode, it should be written as a likely hardcoded C2 destination, not confirmed active traffic.
+Memory analysis found shellcode containing ws2_32, which is used for Windows networking, and a likely external destination of 1.6.12.12:11198. If this was confirmed in Volatility network output, it can be treated as command-and-control activity. If it was only found in shellcode, it should be written as a likely hardcoded C2 address. The closest MITRE mapping is T1095 — Non-Application Layer Protocol, unless later evidence confirms HTTP, DNS, or another application-layer protocol..
