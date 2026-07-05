@@ -4,16 +4,18 @@ The compromise later affected internal systems. Malicious files were identified 
 
 On 21 Jun 20, suspicious command activity on the Domain Controller was followed by the creation of LOCKED.rar and a ransom note named Your Files Have Been Encrypted. Shortly afterwards, the Windows Security audit log was cleared. The incident is therefore assessed as a financially motivated cybercriminal attack that began with compromise of the public website, spread into the internal environment and ended with ransomware-style impact. The available evidence does not support confident attribution to a specific named threat group or nation-state actor.
 
-
-5. Initial Access
+Initial Access
 At 00:45:19Z on 18 Jun 20, the adversary at 5.112.3.2 began targeting KOALANET’s public WordPress website. After repeated login attempts, the adversary gained access to the website administration area and later changed a website file to maintain remote access to the web server.
-6. Privilege Escalation
+
+Privilege Escalation
 At 23:02:24Z on 21 Jun 20, the malicious file C:\Users\abbey.soto\AppData\Local\Temp\PtKZjedI.exe was installed on the Windows 7 workstation as an automatic service running with high-level system privileges. The investigation confirmed privileged access, but did not identify the exact method used to gain those privileges.
-7. Lateral Movement
+
+Lateral Movement
 At 22:55:17Z on 21 Jun 20, malicious software was confirmed running on the Windows 7 workstation 10.0.0.12 and communicating with the same adversary IP. The exact method used to place the malware on the workstation was not confirmed. Later, at 00:52:14Z on 22 Jun 20, the Domain Controller recorded a successful Administrator logon from the compromised web server 10.0.0.3, showing that the adversary had moved from the public-facing system into the internal network.
-8. Persistence
+Persistence
 At 01:36:14Z on 18 Jun 20, the adversary modified the WordPress page.php file so the web server would continue providing remote access. Later, at 23:02:24Z on 21 Jun 20, the Windows 7 malware was installed as an automatic service, allowing it to continue running after a restart.
-9. Post Exploitation
+
+Post Exploitation
 At 04:10:22Z on 19 Jun 20, malicious activity was confirmed on the Domain Controller when a script launched a suspicious program. On 21 Jun 20 at 23:13:11Z, further command activity occurred. Shortly afterwards, LOCKED.rar was created at 23:14:26Z, followed by the ransom note Your Files Have Been Encrypted at 23:21:30Z. The Security audit log was then cleared at 23:23:19Z, showing ransomware-style impact followed by an apparent attempt to remove evidence.
 
 
@@ -111,12 +113,10 @@ Connection: 10.0.0.12:58749 → 5.112.3.2:16002
 UNK 21/22 Jun 20	Windows 7 10.0.0.12	Internal network access. The workstation had an established SMB connection to the Domain Controller. This confirms connectivity but does not prove the malware delivery route.
 Connection: 10.0.0.12:57316 → 10.0.0.2:445
 
-
-5. Initial Access
-3. On 18 Jun 20, adversary IP 5.112.3.2 targeted KOALANET’s public WordPress website hosted on web server 10.0.0.3. At 00:48:04Z, the adversary began automated WordPress reconnaissance using WPScan v3.8.1, followed by activity consistent with user enumeration. At 00:49:52Z, repeated authentication attempts began against /wp-login.php. At 00:59:21Z, a POST /wp-login.php request returned HTTP 302, indicating a likely successful authentication. By 01:12:30Z, the adversary had successfully accessed /wp-admin/, confirming unauthorised access to the WordPress administration area. Separate packet evidence also showed traffic from 5.112.3.2 to 10.0.0.3 submitting the credentials admin and Consumer10. This activity mapped to MITRE ATT&CK T1110 – Brute Force and T1078 – Valid Accounts.
-4. The initial access event was the compromise of the WordPress administrator account on 10.0.0.3. The first likely successful authentication occurred at 00:59:21Z, with confirmed access to the restricted /wp-admin/ area by 01:12:30Z. This was the first confirmed unauthorised entry into the KOALANET environment. Later compromise of the Domain Controller and Windows 7 workstation is covered separately under Lateral Movement and Post Exploitation.
-
-5.  Evidence analysed
+Initial Access
+On 18 Jun 20, adversary IP 5.112.3.2 targeted KOALANET’s public WordPress website hosted on web server 10.0.0.3. At 00:48:04Z, the adversary began automated WordPress reconnaissance using WPScan v3.8.1, followed by activity consistent with user enumeration. At 00:49:52Z, repeated authentication attempts began against /wp-login.php. At 00:59:21Z, a POST /wp-login.php request returned HTTP 302, indicating a likely successful authentication. By 01:12:30Z, the adversary had successfully accessed /wp-admin/, confirming unauthorised access to the WordPress administration area. Separate packet evidence also showed traffic from 5.112.3.2 to 10.0.0.3 submitting the credentials admin and Consumer10. This activity mapped to MITRE ATT&CK T1110 – Brute Force and T1078 – Valid Accounts.
+The initial access event was the compromise of the WordPress administrator account on 10.0.0.3. The first likely successful authentication occurred at 00:59:21Z, with confirmed access to the restricted /wp-admin/ area by 01:12:30Z. This was the first confirmed unauthorised entry into the KOALANET environment. Later compromise of the Domain Controller and Windows 7 workstation is covered separately under Lateral Movement and Post Exploitation.
+Evidence analysed
 Finding: Repeated WordPress authentication attempts were followed by successful administrator access.
 /var/log/apache2/access.log.4
 Search for:
@@ -126,7 +126,7 @@ POST /wp-login.php
 WPScan v3.8.1
 The sequence shows reconnaissance, repeated login attempts, a likely successful login and later confirmed access to the restricted WordPress administration area.
 ________________________________________
-5b. Malicious artefact found
+Malicious artefact found
 Network packet analysis showed the adversary submitting:
 log=admin
 pwd=Consumer10
@@ -138,7 +138,7 @@ http.request.method == "POST" &&
 http.request.uri contains "wp-login.php"
 The adversary used WordPress administrator credentials during the attack. Combined with the later /wp-admin/ access, this supports successful use of a valid account.
 ________________________________________
-5c. Why the finding was significant
+Why the finding was significant
 Finding: After gaining WordPress administrator access, the adversary later accessed the theme editor and modified:
 /var/www/html/wp-content/themes/twentyfourteen/page.php
 Where to look:
@@ -149,10 +149,10 @@ page.php
 The initial compromise gave the adversary enough control to alter server-side WordPress code. This later enabled continued remote access to the web server and is covered in more detail under Persistence.
 
 Privilege Escalation
-7. The investigation did not identify the exact method used by the adversary to gain higher privileges after the initial WordPress compromise. However, later evidence showed that the adversary was operating with high-level access on internal systems. On 21 Jun 20 at 23:02:24Z, the malicious file PtKZjedI.exe was installed on Windows 7 workstation 10.0.0.12 as an automatic Windows service running under LocalSystem. On 22 Jun 20 at 00:52:14Z, the Domain Controller 10.0.0.2 also recorded a successful network logon from the compromised web server 10.0.0.3 using the KOALANET\Administrator account. This confirmed that privileged access had been achieved, although the exact escalation technique could not be proven from the available evidence.
+The investigation did not identify the exact method used by the adversary to gain higher privileges after the initial WordPress compromise. However, later evidence showed that the adversary was operating with high-level access on internal systems. On 21 Jun 20 at 23:02:24Z, the malicious file PtKZjedI.exe was installed on Windows 7 workstation 10.0.0.12 as an automatic Windows service running under LocalSystem. On 22 Jun 20 at 00:52:14Z, the Domain Controller 10.0.0.2 also recorded a successful network logon from the compromised web server 10.0.0.3 using the KOALANET\Administrator account. This confirmed that privileged access had been achieved, although the exact escalation technique could not be proven from the available evidence.
 This activity was associated with MITRE ATT&CK T1543.003 – Windows Service and T1078 – Valid Accounts.
-8. The strongest evidence was found on the Windows 7 workstation. At 23:02:24Z on 21 Jun 20, PtKZjedI.exe was installed as the service Routine updater for Windows applications, set to start automatically and run as LocalSystem. The Domain Controller also showed privileged account use when KOALANET\Administrator logged in from the compromised web server. This shows the adversary reached high-level access on more than one system, but the investigation could not confirm exactly how those privileges were first obtained.
-9. Evidence analysed
+The strongest evidence was found on the Windows 7 workstation. At 23:02:24Z on 21 Jun 20, PtKZjedI.exe was installed as the service Routine updater for Windows applications, set to start automatically and run as LocalSystem. The Domain Controller also showed privileged account use when KOALANET\Administrator logged in from the compromised web server. This shows the adversary reached high-level access on more than one system, but the investigation could not confirm exactly how those privileges were first obtained.
+Evidence analysed
 Finding: PtKZjedI.exe was installed as an automatic Windows service running as LocalSystem.
 Where to look:
 Source file: system77.txt
@@ -164,7 +164,7 @@ LocalSystem
 File path:
 C:\Users\abbey.soto\AppData\Local\Temp\PtKZjedI.exe
 What it means: The malware was running with SYSTEM-level privileges, giving it extensive control over the workstation. The event proves privileged execution, but not the exact method used to gain those privileges.
-10. Supporting evidence
+Supporting evidence
 Finding: The malicious service later entered the running state.
 Where to look:
 Source file: system77.txt
@@ -172,7 +172,7 @@ Search for:
 Event ID 7036
 Routine updater for Windows applications
 What it means: This supports that the malicious service was successfully started and continued running with LocalSystem privileges.
-10a. Privileged access on the Domain Controller
+Privileged access on the Domain Controller
 Finding: A successful Administrator network logon came from the compromised web server.
 Where to look:
 Source files:
@@ -190,8 +190,8 @@ Destination: 10.0.0.2
 Account: KOALANET\Administrator
 Authentication: NTLM V2
 What it means: The compromised web server successfully authenticated to the Domain Controller using a privileged account.
-10b. Special privileges assigned
-Finding: The Administrator session received special privileges.
+Special privileges assigned
+The Administrator session received special privileges.
 Where to look:
 Source files:
 security.csv
@@ -200,10 +200,10 @@ Search for:
 Event ID 4672
 KOALANET\Administrator
 What it means: This confirmed that the logged-on Administrator session had high-level privileges on the Domain Controller.
-10c. Evidence limitation
+Evidence limitation
 The same password, Consumer10, was also seen in the WordPress login traffic and was associated with internal Administrator access to the corporate share. This password reuse may explain how the adversary reached privileged internal accounts. However, the available evidence does not prove the exact step used to gain LocalSystem or Administrator privileges. The safest conclusion is that privileged access was confirmed, but the exact privilege escalation method was not identified.
 
-7. Lateral Movement
+Lateral Movement
 How the adversary moved through the network
 After the WordPress server 10.0.0.3 was compromised, the adversary gained access to systems inside the KOALANET network. The clearest evidence was found on the Domain Controller. On 22 Jun 20 at 00:52:14Z, Windows Security Event ID 4624 recorded a successful Logon Type 3 from the compromised web server 10.0.0.3 using the account KOALANET\Administrator. Domain Controller memory also showed an SMB connection on port 445 using the same source port. The web server had also been configured to access //10.0.0.2/CorporateShare, using Administrator credentials. This strongly supports movement from the compromised web server into the internal network using valid credentials and SMB access.
 The Windows 7 workstation 10.0.0.12 was also involved in the compromise. On 21 Jun 20 at 23:53:51Z, the Domain Controller recorded a successful network logon from the workstation using KOALANET\abbey.soto. Memory analysis also showed an established SMB connection from Windows 7 to the Domain Controller on port 445. This confirms internal access between the two systems. However, the exact method used to place the malware on Windows 7 was not identified, so the evidence does not prove that the malware was delivered over SMB.
@@ -330,7 +330,7 @@ What it means: This confirms SMB connectivity between the two systems. It does n
 
 Evidence limitation
 The evidence clearly shows that the compromise spread into the internal network and involved the Domain Controller and Windows 7 workstation. However, the exact route used to first compromise Windows 7 was not confirmed. Also, the successful Administrator logon from the web server happened after the ransomware impact, so it proves continued internal access rather than the original route that caused the earlier Domain Controller compromise
-8. Persistence
+Persistence
 How the adversary maintained access
 The adversary set up more than one way to keep access after the initial compromise. On the WordPress server 10.0.0.3, the adversary used the WordPress theme editor to modify page.php. At 01:36:14Z on 18 Jun 20, the file was changed to include obfuscated PHP code that connected back to 5.112.3.2:5001. This gave the adversary a way to regain remote access through the compromised website.
 Persistence was also found on the Windows 7 workstation 10.0.0.12. On 21 Jun 20 at 23:02:24Z, the malicious file PtKZjedI.exe was installed as an automatic Windows service called Routine updater for Windows applications. The service ran as LocalSystem and later entered the running state. This meant the malware could continue running with high privileges and start again after a reboot.
