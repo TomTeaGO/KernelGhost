@@ -66,6 +66,9 @@ Location: /var/log/apache2/access.log.4; Wireshark frame 726938
 01:19:51 18 Jun 20	Web Server 10.0.0.3	Post exploitation / staging. A file was uploaded through the WordPress asynchronous upload handler.
 Source: access.log.4
 Path: POST /wp-admin/async-upload.php
+01:21:28 18 Jun 20 Web Server / Corporate Share
+Defence evasion / malicious file staging. Suspicious file 1.php_.txt contained Base64-obfuscated PHP using eval(base64_decode(...)). The file was identified in the WordPress uploads area and the shared SurveyData location.
+Paths: /var/www/html/wp-content/uploads/1.php_.txt; /mnt/CorporateFiles/SurveyData/1.php_.txt; CorporateShare\SurveyData\1.php_.txt
 01:24:36 18 Jun 20	Web Server 10.0.0.3	Persistence preparation. The adversary accessed the WordPress theme editor after gaining administrator access.
 Source: access.log.4
 Path: /wp-admin/theme-editor.php
@@ -332,7 +335,7 @@ Evidence limitation
 The evidence clearly shows that the compromise spread into the internal network and involved the Domain Controller and Windows 7 workstation. However, the exact route used to first compromise Windows 7 was not confirmed. Also, the successful Administrator logon from the web server happened after the ransomware impact, so it proves continued internal access rather than the original route that caused the earlier Domain Controller compromise
 Persistence
 How the adversary maintained access
-The adversary set up more than one way to keep access after the initial compromise. On the WordPress server 10.0.0.3, the adversary used the WordPress theme editor to modify page.php. At 01:36:14Z on 18 Jun 20, the file was changed to include obfuscated PHP code that connected back to 5.112.3.2:5001. This gave the adversary a way to regain remote access through the compromised website.
+The adversary set up more than one way to keep access after the initial compromise. On 18 Jun 20 at 01:36:14Z, the adversary modified /var/www/html/wp-content/themes/twentyfourteen/page.php. Analysis of the file identified PHP code hidden using eval(base64_decode(...)). Once decoded, the code established a reverse TCP connection to 5.112.3.2:5001, allowing the adversary to maintain remote access to the web server. The use of Base64 encoding also showed an attempt to hide the malicious code from basic inspection. This activity mapped to T1505.003 – Web Shell and T1027 – Obfuscated Files or Information.
 Persistence was also found on the Windows 7 workstation 10.0.0.12. On 21 Jun 20 at 23:02:24Z, the malicious file PtKZjedI.exe was installed as an automatic Windows service called Routine updater for Windows applications. The service ran as LocalSystem and later entered the running state. This meant the malware could continue running with high privileges and start again after a reboot.
 This activity mapped to MITRE ATT&CK T1505.003 – Web Shell and T1543.003 – Windows Service.
 Evidence analysed – WordPress persistence
@@ -402,7 +405,7 @@ post exploitation but i need sub heading like defence evation, credential access
 Thought for 13s
 9. Post Exploitation
 Defence Evasion
-On 21 Jun 20 at 23:23:19Z, the Windows Security audit log on Domain Controller 10.0.0.2 was cleared shortly after the ransomware activity. This was identified in security.csv and test.txt through Event ID 1102.
+On 21 Jun 20 at 23:23:19Z, the Windows Security audit log on Domain Controller 10.0.0.2 was cleared shortly after the ransomware activity. This was identified in security.csv and test.txt through Event ID 1102. 
 Where to look:
 security.csv / test.txt
 Search: Event ID 1102
